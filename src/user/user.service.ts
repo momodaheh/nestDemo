@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { UserStatsDto } from './user-stats.dto';
+import { RedisService } from '../common/redis/redis.service';
 
 
 
@@ -12,26 +13,26 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private redisService: RedisService, // 注入Redis服务
   ) {}
 
-  async findAll(page: number = 1, limit: number = 10) {
-    // 参数校验：防止 NaN、负数、0 等异常情况
-    page = Number.isNaN(page) || page < 1 ? 1 : page;
-    limit = Number.isNaN(limit) || limit < 1 ? 10 : limit;
-    // 限制最大 limit，防止一次查太多数据
-    limit = limit > 100 ? 100 : limit;
-
-    const [data, total] = await this.userRepository.findAndCount({
+  async findAll(page = 1, limit = 10) {
+    const cacheKey = `all_users_${page}_${limit}`;
+    // 1. 先查Redis
+    const cacheData = await this.redisService.get<User[]>(cacheKey);
+    if (cacheData) {
+      console.log('走Redis缓存');
+      return cacheData;
+    }
+    // 2. 查PG
+    console.log('走PG数据库');
+    const users = await this.userRepository.find({
       skip: (page - 1) * limit,
       take: limit,
     });
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-    };
+    // 3. 存Redis 60秒
+    await this.redisService.set(cacheKey, users, 60);
+    return users;
   }
 
   findOne(id: number) {

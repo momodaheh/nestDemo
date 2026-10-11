@@ -9,6 +9,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { RedisModule } from './common/redis/redis.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
       autoLoadEntities: true, // 自动加载所有通过 forFeature 注册的实体
       synchronize: true,
     }),
+    RedisModule,
     UserModule,
     ArticleModule,
     AuthModule,
